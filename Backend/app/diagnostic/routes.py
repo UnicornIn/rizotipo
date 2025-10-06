@@ -12,7 +12,10 @@ router = APIRouter()
 # ===== Crear diagnóstico =====
 @router.post("/", response_model=DiagnosticResponse)
 async def create_diagnostic(diagnostic: DiagnosticRequest, user=Depends(get_current_user)):
+    print("Received diagnostic request:", diagnostic)
+    print("Authenticated user:", user)
     result = await create_diagnostic_controller(diagnostic, str(user["_id"]))
+    print("Created diagnostic result:", result)
     return result
 
 

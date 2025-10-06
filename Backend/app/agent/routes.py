@@ -13,7 +13,7 @@ class ChatRequest(BaseModel):
 @router.post("/chat")
 async def chat_endpoint(data: ChatRequest):
     response = await chat_with_openai(data.message)
-    return {"response": response}
+    return {"response": response}       
 
 
 # # 🔹 Endpoint streaming (va devolviendo tokens en vivo)
