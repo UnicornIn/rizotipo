@@ -31,7 +31,7 @@ class ChatSession(BaseModel):
     id: Optional[PyObjectId] = Field(default=None, alias="_id")
     professional_id: PyObjectId
     title: str
-    messages: List[Message] = []
+    messages: List[Dict[str, Any]] = []  # Cambiado a Dict para mayor compatibilidad
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     
@@ -51,18 +51,3 @@ class ChatSessionResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     last_message: Optional[str] = None
-
-# Modelo alternativo más simple si el anterior no funciona
-class SimpleChatSession(BaseModel):
-    id: Optional[str] = Field(default=None, alias="_id")
-    professional_id: str
-    title: str
-    messages: List[Dict[str, Any]] = []  # Usar dict simple para mensajes
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
-    
-    model_config = ConfigDict(
-        arbitrary_types_allowed=True,
-        json_encoders={ObjectId: str},
-        populate_by_name=True
-    )
