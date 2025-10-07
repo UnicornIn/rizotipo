@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect } from "react";
+import { API_BASE_URL } from "../types/config";
 
 interface ChatAreaProps {
   activeChat: string;
-  chatSessionId: string;
 }
 
 interface Message {
@@ -13,16 +13,37 @@ interface Message {
   avatar?: string;
 }
 
-export function ChatArea({ activeChat, chatSessionId }: ChatAreaProps) {
+export function ChatArea({ activeChat }: ChatAreaProps) {
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
 
+  // Función para manejar token expirado
+  const handleTokenExpired = () => {
+    // Limpiar token y redirigir al login
+    localStorage.removeItem("access_token");
+    localStorage.removeItem("refresh_token");
+    window.location.href = "/login";
+  };
+
+  // Función para verificar si la respuesta indica token expirado
+  const checkTokenExpired = (response: Response) => {
+    if (response.status === 401) {
+      handleTokenExpired();
+      return true;
+    }
+    return false;
+  };
+
   // Función para obtener el token
   const getToken = () => {
-    return localStorage.getItem("access_token");
+    const token = localStorage.getItem("access_token");
+    if (!token) {
+      handleTokenExpired();
+    }
+    return token;
   };
 
   // Generar ID único para mensajes
@@ -37,6 +58,62 @@ export function ChatArea({ activeChat, chatSessionId }: ChatAreaProps) {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Cargar historial de mensajes al montar el componente
+  useEffect(() => {
+    loadChatHistory();
+  }, []);
+
+  const loadChatHistory = async () => {
+    try {
+      const token = getToken();
+      if (!token) {
+        console.warn("No hay token de autenticación para cargar el historial");
+        return;
+      }
+
+      const response = await fetch(`${API_BASE_URL}/agent/session`, {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const sessionData = await response.json();
+        
+        if (sessionData.messages && sessionData.messages.length > 0) {
+          const formattedMessages: Message[] = sessionData.messages.map((msg: any) => ({
+            id: generateMessageId(),
+            sender: msg.role,
+            content: msg.content,
+            timestamp: new Date(msg.timestamp).toLocaleTimeString("es-ES", {
+              hour: "2-digit",
+              minute: "2-digit",
+            }),
+            avatar: msg.role === "user" ? "TU" : "RT",
+          }));
+          
+          setMessages(formattedMessages);
+        }
+      } else if (response.status === 404) {
+        // No hay sesión activa, es normal para primer uso
+        console.log("No hay sesión activa, comenzando chat nuevo");
+      } else {
+        // Verificar si el token expiró
+        if (checkTokenExpired(response)) {
+          return;
+        }
+        console.error("Error cargando historial:", response.status);
+      }
+    } catch (error) {
+      console.error("Error cargando historial del chat:", error);
+      // En caso de error de red, también verificamos si es por token expirado
+      if (error instanceof Error && error.message.includes("401")) {
+        handleTokenExpired();
+      }
+    }
+  };
 
   const handleSendMessage = async () => {
     if (!message.trim()) return;
@@ -64,16 +141,14 @@ export function ChatArea({ activeChat, chatSessionId }: ChatAreaProps) {
         throw new Error("No hay token de autenticación");
       }
 
-      const response = await fetch("https://longest-project-connectors-molecular.trycloudflare.com/agent/agent/chat", {
+      const response = await fetch(`${API_BASE_URL}/agent/chat`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${token}`
         },
         body: JSON.stringify({
-          message: currentMessage,
-          // Si tu backend no necesita chat_session_id, puedes quitarlo
-          chat_session_id: chatSessionId || "default_session"
+          message: currentMessage
         })
       });
 
@@ -90,13 +165,22 @@ export function ChatArea({ activeChat, chatSessionId }: ChatAreaProps) {
           avatar: "RT",
         };
         setMessages(prev => [...prev, agentMessage]);
-      } else if (response.status === 401) {
-        throw new Error("Token inválido o expirado");
       } else {
+        // Verificar si el token expiró
+        if (checkTokenExpired(response)) {
+          return;
+        }
         throw new Error(`Error en la respuesta del servidor: ${response.status}`);
       }
     } catch (error) {
       console.error("Error sending message:", error);
+      
+      // Verificar si es error de token expirado
+      if (error instanceof Error && error.message.includes("401")) {
+        handleTokenExpired();
+        return;
+      }
+
       const errorMessage: Message = {
         id: generateMessageId(),
         sender: "assistant",
@@ -131,6 +215,7 @@ export function ChatArea({ activeChat, chatSessionId }: ChatAreaProps) {
           {activeChat || "Chat con el Agente"}
         </h2>
         <p className="text-sm text-green-400 mt-1">
+          {messages.length > 0 ? `${messages.length} mensajes` : "Chat nuevo"}
         </p>
       </div>
 
@@ -140,9 +225,8 @@ export function ChatArea({ activeChat, chatSessionId }: ChatAreaProps) {
         className="flex-1 overflow-y-auto p-4 space-y-6 bg-gradient-to-br from-zinc-900 to-black min-h-0"
       >
         {messages.length === 0 ? (
-          <div className="text-center text-zinc-400 mt-8">
-            <div className="w-16 h-16 rounded-full bg-zinc-800/60 flex items-center justify-center mx-auto mb-4">
-              <span className="text-2xl">🤖</span>
+            <div className="flex flex-col items-center justify-center h-full text-zinc-400 mt-8">
+            <div>
             </div>
             <p className="text-lg text-white">
               ¡Hola! Soy tu asistente virtual
@@ -150,7 +234,7 @@ export function ChatArea({ activeChat, chatSessionId }: ChatAreaProps) {
             <p className="text-sm text-zinc-500 mt-2">
               Escribe tu primer mensaje abajo para comenzar la conversación
             </p>
-          </div>
+            </div>
         ) : (
           messages.map((msg) => (
             <div key={msg.id} className={`flex gap-3 ${msg.sender === "user" ? "justify-end" : "justify-start"}`}>

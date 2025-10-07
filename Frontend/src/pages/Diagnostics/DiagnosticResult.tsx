@@ -19,7 +19,7 @@ interface Diagnostico {
   grosor: string
   textura: string
   notas?: string
-  resultado_agente?: string
+  resultado_agente?: string 
 }
 
 interface SeccionRecomendacion {
@@ -49,20 +49,38 @@ export default function DiagnosticResult() {
   const [isLoading, setIsLoading] = useState(true)
   const [secciones, setSecciones] = useState<SeccionRecomendacion[]>([])
 
-  // Función para obtener el token
+  // Función para manejar token expirado
+  const handleTokenExpired = () => {
+    localStorage.removeItem("access_token");
+    localStorage.removeItem("refresh_token");
+    window.location.href = "/login";
+  };
+
+  // Función para verificar si la respuesta indica token expirado
+  const checkTokenExpired = (response: Response) => {
+    if (response.status === 401) {
+      handleTokenExpired();
+      return true;
+    }
+    return false;
+  };
+
+  // Función para obtener el token con verificación
   const getToken = () => {
-    return localStorage.getItem("access_token")
-  }
+    const token = localStorage.getItem("access_token");
+    if (!token) {
+      handleTokenExpired();
+    }
+    return token;
+  };
 
   useEffect(() => {
     const fetchDiagnostic = async () => {
       if (!id) return
       
       try {
-        const token = getToken()
-        if (!token) {
-          throw new Error("No hay token de autenticación")
-        }
+        const token = getToken();
+        if (!token) return;
 
         const response = await fetch(`${API_BASE_URL}/diagnostics/${id}`, {
           headers: {
@@ -71,20 +89,29 @@ export default function DiagnosticResult() {
           }
         })
         
-        if (!response.ok) {
+        if (response.ok) {
+          const result = await response.json()
+          setData(result)
+          
+          // Procesar el resultado del agente si existe
+          if (result.resultado_agente) {
+            const seccionesProcesadas = parsearResultadoAgente(result.resultado_agente)
+            setSecciones(seccionesProcesadas)
+          }
+        } else {
+          // Verificar si el token expiró
+          if (checkTokenExpired(response)) {
+            return;
+          }
           throw new Error("Error cargando diagnóstico")
-        }
-        
-        const result = await response.json()
-        setData(result)
-        
-        // Procesar el resultado del agente si existe
-        if (result.resultado_agente) {
-          const seccionesProcesadas = parsearResultadoAgente(result.resultado_agente)
-          setSecciones(seccionesProcesadas)
         }
       } catch (err) {
         console.error("Error cargando diagnóstico:", err)
+        // Verificar si es error de token expirado
+        if (err instanceof Error && err.message.includes("401")) {
+          handleTokenExpired();
+          return;
+        }
         alert("Error al cargar el diagnóstico")
       } finally {
         setIsLoading(false)
@@ -128,29 +155,6 @@ export default function DiagnosticResult() {
   const parsearResultadoTexto = (texto: string): SeccionRecomendacion[] => {
     const secciones: SeccionRecomendacion[] = []
     
-    // const seccionesComunes = [
-    //   { 
-    //     titulo: "Resultados del Diagnóstico", 
-    //     patrones: ["resultados", "diagnóstico", "diagnostico"]
-    //   },
-    //   { 
-    //     titulo: "Recomendaciones de Lavado", 
-    //     patrones: ["lavado", "shampoo", "acondicionador", "limpieza", "frecuencia"]
-    //   },
-    //   { 
-    //     titulo: "Tratamientos", 
-    //     patrones: ["tratamiento", "mascarilla", "hidratacion", "nutricion", "reconstruccion"]
-    //   },
-    //   { 
-    //     titulo: "Definición y Styling", 
-    //     patrones: ["definicion", "styling", "peinado", "moldeado", "gel", "crema"]
-    //   },
-    //   { 
-    //     titulo: "Cuidados Extra", 
-    //     patrones: ["cuidado", "nocturno", "proteccion", "dormir", "mantenimiento"]
-    //   }
-    // ]
-
     if (texto.includes("**") || texto.includes("#") || texto.match(/[A-Z][A-Z\s]+:/)) {
       const lineas = texto.split('\n').filter(linea => linea.trim())
       let seccionActual: SeccionRecomendacion | null = null
@@ -227,41 +231,41 @@ export default function DiagnosticResult() {
     </div>
   )
 
-  // 🔹 Función para normalizar los valores
+  // 🔹 Si quieres mostrar los valores normalizados, descomenta el siguiente bloque y el Card de resultados del diagnóstico.
+  /*
   const normalizarValor = (valor: string, tipo: string): string => {
-    const valorLower = valor.toLowerCase().trim()
-    
-    if (tipo === "plasticidad" || tipo === "permeabilidad" || tipo === "porosidad" || tipo === "oleosidad") {
-      if (valorLower === "sí" || valorLower === "si" || valorLower === "alta" || valorLower === "high") return "Alta"
-      if (valorLower === "no" || valorLower === "baja" || valorLower === "low") return "Baja"
-      return valor
+    if (!valor) return "";
+    const valorLower = valor.toLowerCase().trim();
+
+    switch (tipo) {
+      case "plasticidad":
+      case "permeabilidad":
+      case "porosidad":
+      case "oleosidad":
+        if (["sí", "si", "alta", "high"].includes(valorLower)) return "Alta";
+        if (["no", "baja", "low"].includes(valorLower)) return "Baja";
+        break;
+      case "densidad":
+        if (valorLower === "poca") return "Poca";
+        if (valorLower === "media") return "Media";
+        if (valorLower === "mucha") return "Mucha";
+        break;
+      case "grosor":
+        if (valorLower === "delgada") return "Delgada";
+        if (valorLower === "media") return "Media";
+        if (valorLower === "gruesa") return "Gruesa";
+        break;
+      case "textura":
+        if (valorLower === "ondulado") return "Ondulado";
+        if (valorLower === "rizado") return "Rizado";
+        if (valorLower === "afro") return "Afro";
+        break;
+      default:
+        break;
     }
-    
-    if (tipo === "densidad") {
-      if (valorLower === "poca") return "Poca"
-      if (valorLower === "media") return "Media"
-      if (valorLower === "mucha") return "Mucha"
-      return valor
-    }
-    
-    if (tipo === "grosor") {
-      if (valorLower === "delgada") return "Delgada"
-      if (valorLower === "media") return "Media"
-      if (valorLower === "gruesa") return "Gruesa"
-      return valor
-    }
-    
-    if (tipo === "textura") {
-      if (valorLower === "ondulado") return "Ondulado"
-      if (valorLower === "rizado") return "Rizado"
-      if (valorLower === "afro") return "Afro"
-      return valor
-    }
-    
-    return valor
+    return valor;
   }
 
-  // 🔹 Datos normalizados para mostrar
   const datosNormalizados = {
     plasticidad: normalizarValor(data.plasticidad, "plasticidad"),
     permeabilidad: normalizarValor(data.permeabilidad, "permeabilidad"),
@@ -271,6 +275,7 @@ export default function DiagnosticResult() {
     grosor: normalizarValor(data.grosor, "grosor"),
     textura: normalizarValor(data.textura, "textura")
   }
+  */
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-zinc-900 to-black py-8 px-4 sm:px-6 lg:px-8">
@@ -318,7 +323,7 @@ export default function DiagnosticResult() {
           </Card>
 
           {/* Resultados del diagnóstico */}
-          <Card className="bg-zinc-900 border border-zinc-700">
+          {/* <Card className="bg-zinc-900 border border-zinc-700">
             <CardHeader className="pb-3">
               <CardTitle className="text-white text-xl">
                 Resultados del Diagnóstico
@@ -350,7 +355,7 @@ export default function DiagnosticResult() {
                 ))}
               </div>
             </CardContent>
-          </Card>
+          </Card> */}
 
           {/* Resultado del Agente IA - Organizado en secciones */}
           {secciones.length > 0 && (

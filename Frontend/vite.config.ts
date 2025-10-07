@@ -13,7 +13,7 @@ export default defineConfig({
     host: '0.0.0.0', // Escucha en todas las interfaces de red
     port: 3000, // Puedes cambiar el puerto si lo necesitas
     allowedHosts: [
-      'photographer-outdoor-usb-retirement.trycloudflare.com' // <-- tu host de Cloudflare
+      'concept-realty-cliff-unions.trycloudflare.com' // <-- tu host de Cloudflare
     ]
   },
 })

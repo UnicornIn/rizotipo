@@ -77,10 +77,30 @@ export default function DiagnosticForm() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errors, setErrors] = useState<{[key: string]: string}>({})
 
-  // Función para obtener el token
+  // Función para manejar token expirado
+  const handleTokenExpired = () => {
+    localStorage.removeItem("access_token");
+    localStorage.removeItem("refresh_token");
+    window.location.href = "/login";
+  };
+
+  // Función para verificar si la respuesta indica token expirado
+  const checkTokenExpired = (response: Response) => {
+    if (response.status === 401) {
+      handleTokenExpired();
+      return true;
+    }
+    return false;
+  };
+
+  // Función para obtener el token con verificación
   const getToken = () => {
-    return localStorage.getItem("access_token")
-  }
+    const token = localStorage.getItem("access_token");
+    if (!token) {
+      handleTokenExpired();
+    }
+    return token;
+  };
 
   const handleChange = (key: string, value: string) => {
     setFormData({ ...formData, [key]: value })
@@ -146,10 +166,8 @@ export default function DiagnosticForm() {
 
     setIsSubmitting(true)
     try {
-      const token = getToken()
-      if (!token) {
-        throw new Error("No hay token de autenticación")
-      }
+      const token = getToken();
+      if (!token) return;
 
       const res = await fetch(`${API_BASE_URL}/diagnostics`, {
         method: "POST",
@@ -160,15 +178,24 @@ export default function DiagnosticForm() {
         body: JSON.stringify(formData),
       })
 
-      if (!res.ok) {
+      if (res.ok) {
+        const data = await res.json()
+        navigate(`/diagnostics/result/${data.id}`)
+      } else {
+        // Verificar si el token expiró
+        if (checkTokenExpired(res)) {
+          return;
+        }
         const errorData = await res.json()
         throw new Error(errorData.detail || "Error creando diagnóstico")
       }
-
-      const data = await res.json()
-      navigate(`/diagnostics/result/${data.id}`)
     } catch (err: any) {
       console.error(err)
+      // Verificar si es error de token expirado
+      if (err instanceof Error && err.message.includes("401")) {
+        handleTokenExpired();
+        return;
+      }
       alert(err.message || "Hubo un error al guardar el diagnóstico")
     } finally {
       setIsSubmitting(false)

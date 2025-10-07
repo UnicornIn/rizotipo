@@ -1,190 +1,110 @@
 import { useState, useEffect } from "react"
-import { X, MessageSquare, Search, Plus, LogOut, Edit3 } from "lucide-react"
+import { X, FileText, Search, LogOut } from "lucide-react"
 import { useAuth } from "../contexts/AuthContext"
 import { useNavigate } from "react-router-dom"
 import { API_BASE_URL } from "../types/config"
 
 interface SidebarProps {
-  activeChat: string
-  setActiveChat: (chat: string) => void
-  chatSessionId: string
-  setChatSessionId: (id: string) => void
   isOpen: boolean
   onClose: () => void
 }
 
-interface ChatSession {
+interface Diagnostic {
   id: string
-  title: string
-  message_count: number
+  nombre: string
+  whatsapp: string
+  correo: string
+  plasticidad: string
+  permeabilidad: string
+  densidad: string
+  porosidad: string
+  oleosidad: string
+  grosor: string
+  textura: string
+  notas?: string
   created_at: string
-  updated_at: string
-  last_message: string | null
+  resultado_agente?: string
 }
 
 export default function Sidebar({ 
-  setActiveChat, 
-  chatSessionId, 
-  setChatSessionId,
   isOpen, 
   onClose 
 }: SidebarProps) {
   const { logout, user } = useAuth()
   const navigate = useNavigate()
   const [searchQuery, setSearchQuery] = useState("")
-  const [chatSessions, setChatSessions] = useState<ChatSession[]>([])
-  const [isLoading, setIsLoading] = useState(false)
-  const [editingSessionId, setEditingSessionId] = useState<string | null>(null)
-  const [editTitle, setEditTitle] = useState("")
+  const [diagnostics, setDiagnostics] = useState<Diagnostic[]>([])
 
-  // Cargar sesiones al montar el componente
+  // Función para manejar token expirado
+  const handleTokenExpired = () => {
+    localStorage.removeItem("access_token");
+    localStorage.removeItem("refresh_token");
+    window.location.href = "/login";
+  };
+
+  // Función para verificar si la respuesta indica token expirado
+  const checkTokenExpired = (response: Response) => {
+    if (response.status === 401) {
+      handleTokenExpired();
+      return true;
+    }
+    return false;
+  };
+
+  // Función para obtener el token con verificación
+  const getToken = () => {
+    const token = localStorage.getItem("access_token");
+    if (!token) {
+      handleTokenExpired();
+    }
+    return token;
+  };
+
+  // Cargar diagnósticos al montar el componente
   useEffect(() => {
-    loadChatSessions()
+    loadDiagnostics()
   }, [])
 
-  const loadChatSessions = async () => {
+  const loadDiagnostics = async () => {
     try {
-      const token = localStorage.getItem("access_token")
-      const response = await fetch(`${API_BASE_URL}/agent/sessions`, {
+      const token = getToken();
+      if (!token) return;
+
+      const response = await fetch(`${API_BASE_URL}/diagnostics/`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       })
       
       if (response.ok) {
-        const sessions = await response.json()
-        setChatSessions(sessions)
+        const diagnosticsData = await response.json()
+        setDiagnostics(diagnosticsData)
+      } else {
+        // Verificar si el token expiró
+        if (checkTokenExpired(response)) {
+          return;
+        }
+        console.error("Error loading diagnostics:", response.status)
       }
     } catch (error) {
-      console.error("Error loading chat sessions:", error)
+      console.error("Error loading diagnostics:", error)
+      // En caso de error de red, también verificamos si es por token expirado
+      if (error instanceof Error && error.message.includes("401")) {
+        handleTokenExpired();
+      }
     }
   }
 
-  const filteredSessions = chatSessions.filter((session) =>
-    session.title.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredDiagnostics = diagnostics.filter((diagnostic) =>
+    diagnostic.nombre.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    diagnostic.correo.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    diagnostic.whatsapp.includes(searchQuery)
   )
 
-  const handleNuevoChat = async () => {
-    const nombre = prompt("Nombre de la nueva consulta:")
-    if (nombre) {
-      setIsLoading(true)
-      try {
-        const token = localStorage.getItem("access_token")
-        const response = await fetch(`${API_BASE_URL}/agent/sessions`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`
-          },
-          body: JSON.stringify({ title: nombre })
-        })
-
-        if (response.ok) {
-          const data = await response.json()
-          setActiveChat(nombre)
-          setChatSessionId(data.chat_session_id)
-          await loadChatSessions()
-          onClose()
-        } else {
-          alert("Error al crear la nueva consulta")
-        }
-      } catch (error) {
-        console.error("Error creating new chat:", error)
-        alert("Error al crear la nueva consulta")
-      } finally {
-        setIsLoading(false)
-      }
-    }
-  }
-
-  const handleSelectChat = (session: ChatSession) => {
-    setActiveChat(session.title)
-    setChatSessionId(session.id)
+  const handleSelectDiagnostic = (diagnostic: Diagnostic) => {
+    // Redirigir a la página de resultados del diagnóstico
+    navigate(`/diagnostics/result/${diagnostic.id}`)
     onClose()
-  }
-
-  const handleStartEdit = (session: ChatSession, e: React.MouseEvent) => {
-    e.stopPropagation()
-    setEditingSessionId(session.id)
-    setEditTitle(session.title)
-  }
-
-  const handleSaveEdit = async (sessionId: string, e: React.MouseEvent) => {
-    e.stopPropagation()
-    if (!editTitle.trim()) return
-
-    try {
-      const token = localStorage.getItem("access_token")
-      const response = await fetch(`https://longest-project-connectors-molecular.trycloudflare.com/agent/sessions/${sessionId}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
-        },
-        body: JSON.stringify({ title: editTitle.trim() })
-      })
-
-      if (response.ok) {
-        await loadChatSessions()
-        // Si estamos editando la sesión activa, actualizar el título también
-        if (chatSessionId === sessionId) {
-          setActiveChat(editTitle.trim())
-        }
-        setEditingSessionId(null)
-        setEditTitle("")
-      } else {
-        alert("Error al actualizar la consulta")
-      }
-    } catch (error) {
-      console.error("Error updating chat session:", error)
-      alert("Error al actualizar la consulta")
-    }
-  }
-
-  const handleCancelEdit = (e: React.MouseEvent) => {
-    e.stopPropagation()
-    setEditingSessionId(null)
-    setEditTitle("")
-  }
-
-  const handleDeleteSession = async (sessionId: string, e: React.MouseEvent) => {
-    e.stopPropagation()
-    
-    if (!confirm("¿Estás seguro de que quieres eliminar esta consulta? Esta acción no se puede deshacer.")) {
-      return
-    }
-
-    try {
-      const token = localStorage.getItem("access_token")
-      const response = await fetch(`https://longest-project-connectors-molecular.trycloudflare.com/agent/sessions/${sessionId}`, {
-        method: "DELETE",
-        headers: {
-          "Authorization": `Bearer ${token}`
-        }
-      })
-
-      if (response.ok) {
-        // Si eliminamos la sesión activa, limpiar el chat
-        if (chatSessionId === sessionId) {
-          setActiveChat("")
-          setChatSessionId("")
-        }
-        await loadChatSessions()
-      } else {
-        alert("Error al eliminar la consulta")
-      }
-    } catch (error) {
-      console.error("Error deleting chat session:", error)
-      alert("Error al eliminar la consulta")
-    }
-  }
-
-  const handleKeyPress = (e: React.KeyboardEvent, sessionId: string) => {
-    if (e.key === "Enter") {
-      handleSaveEdit(sessionId, e as any)
-    } else if (e.key === "Escape") {
-      handleCancelEdit(e as any)
-    }
   }
 
   const handleLogout = () => {
@@ -206,9 +126,21 @@ export default function Sidebar({
     } else {
       return date.toLocaleDateString("es-ES", { 
         day: "numeric", 
-        month: "short" 
+        month: "short",
+        year: "numeric"
       })
     }
+  }
+
+  // Obtener resumen corto del diagnóstico para mostrar
+  const getDiagnosticSummary = (diagnostic: Diagnostic) => {
+    const characteristics = [
+      diagnostic.textura,
+      diagnostic.porosidad,
+      diagnostic.oleosidad
+    ].filter(Boolean)
+    
+    return characteristics.length > 0 ? characteristics.join(" • ") : "Sin características"
   }
 
   return (
@@ -235,15 +167,6 @@ export default function Sidebar({
             <h1 className="text-lg font-bold text-white">RIZOTIPO</h1>
             <div className="flex items-center gap-2">
               <button
-                onClick={handleNuevoChat}
-                disabled={isLoading}
-                className="px-3 py-1.5 text-sm text-white rounded-lg font-medium flex items-center transition-all duration-200 disabled:opacity-50 hover:scale-105 active:scale-95"
-                style={{ backgroundColor: "#F198C0" }}
-              >
-                <Plus className="w-4 h-4" />
-                <span className="ml-1">{isLoading ? "..." : "Nuevo"}</span>
-              </button>
-              <button
                 onClick={onClose}
                 className="sm:hidden text-white hover:bg-zinc-800 p-1.5 rounded-lg transition-all duration-200"
               >
@@ -259,7 +182,7 @@ export default function Sidebar({
             </div>
             <input
               type="text"
-              placeholder="Buscar consultas..."
+              placeholder="Buscar diagnósticos..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-4 py-2 bg-zinc-800 border border-zinc-600 text-white placeholder-zinc-400 rounded-lg 
@@ -268,116 +191,46 @@ export default function Sidebar({
           </div>
         </div>
 
-        {/* Consultas */}
+        {/* Diagnósticos */}
         <div className="flex-1 overflow-y-auto p-4">
           <div className="mb-3">
             <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
-              Consultas ({filteredSessions.length})
+              Diagnósticos ({filteredDiagnostics.length})
             </h2>
           </div>
 
-          {filteredSessions.length > 0 ? (
+          {filteredDiagnostics.length > 0 ? (
             <div className="space-y-2">
-              {filteredSessions.map((session) => (
+              {filteredDiagnostics.map((diagnostic) => (
                 <div
-                  key={session.id}
-                  className={`group flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all duration-200 ${
-                    chatSessionId === session.id
-                      ? "text-white"
-                      : "hover:bg-zinc-800 text-zinc-300"
-                  }`}
-                  style={chatSessionId === session.id ? { backgroundColor: "#F198C0" } : {}}
-                  onClick={() => handleSelectChat(session)}
+                  key={diagnostic.id}
+                  className={`group flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all duration-200 hover:bg-zinc-800 text-zinc-300`}
+                  onClick={() => handleSelectDiagnostic(diagnostic)}
                 >
-                  <MessageSquare className="w-4 h-4 flex-shrink-0" />
+                  <FileText className="w-4 h-4 flex-shrink-0" />
                   
                   <div className="flex-1 min-w-0">
-                    {editingSessionId === session.id ? (
-                      <input
-                        type="text"
-                        value={editTitle}
-                        onChange={(e) => setEditTitle(e.target.value)}
-                        onKeyDown={(e) => handleKeyPress(e, session.id)}
-                        onClick={(e) => e.stopPropagation()}
-                        className="w-full bg-zinc-700 border border-zinc-600 text-white text-sm rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-[#F198C0]"
-                        autoFocus
-                      />
-                    ) : (
-                      <>
-                        <p className="text-sm font-medium truncate">{session.title}</p>
-                        {session.last_message && (
-                          <p className="text-xs text-zinc-400 truncate mt-1">
-                            {session.last_message}
-                          </p>
-                        )}
-                        <p className="text-xs text-zinc-500 mt-1">
-                          {formatDate(session.updated_at)}
-                        </p>
-                      </>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-1 flex-shrink-0">
-                    {editingSessionId === session.id ? (
-                      <>
-                        <button
-                          onClick={(e) => handleSaveEdit(session.id, e)}
-                          className="p-1 text-green-400 hover:bg-zinc-700 rounded transition-colors"
-                          title="Guardar"
-                        >
-                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                          </svg>
-                        </button>
-                        <button
-                          onClick={handleCancelEdit}
-                          className="p-1 text-red-400 hover:bg-zinc-700 rounded transition-colors"
-                          title="Cancelar"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <span
-                          className={`text-xs px-2 py-0.5 rounded-full ${
-                            chatSessionId === session.id
-                              ? "bg-zinc-800 text-white"
-                              : "bg-zinc-700 text-zinc-300"
-                          }`}
-                        >
-                          {session.message_count}
-                        </span>
-                        <button
-                          onClick={(e) => handleStartEdit(session, e)}
-                          className="p-1 text-zinc-400 hover:text-white hover:bg-zinc-700 rounded opacity-0 group-hover:opacity-100 transition-all"
-                          title="Editar consulta"
-                        >
-                          <Edit3 className="w-3 h-3" />
-                        </button>
-                        <button
-                          onClick={(e) => handleDeleteSession(session.id, e)}
-                          className="p-1 text-zinc-400 hover:text-red-400 hover:bg-zinc-700 rounded opacity-0 group-hover:opacity-100 transition-all"
-                          title="Eliminar consulta"
-                        >
-                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                        </button>
-                      </>
-                    )}
+                    <p className="text-sm font-medium truncate text-white">
+                      {diagnostic.nombre}
+                    </p>
+                    <p className="text-xs text-zinc-400 truncate mt-1">
+                      {getDiagnosticSummary(diagnostic)}
+                    </p>
+                    <p className="text-xs text-zinc-500 mt-1">
+                      {formatDate(diagnostic.created_at)}
+                    </p>
                   </div>
                 </div>
               ))}
             </div>
           ) : (
             <div className="text-center py-8">
-              <MessageSquare className="w-12 h-12 text-zinc-600 mx-auto mb-3" />
+              <FileText className="w-12 h-12 text-zinc-600 mx-auto mb-3" />
               <p className="text-zinc-400 text-sm">
-                {searchQuery ? "No se encontraron consultas" : "No hay consultas todavía"}
+                {searchQuery ? "No se encontraron diagnósticos" : "No hay diagnósticos todavía"}
               </p>
               <p className="text-zinc-500 text-xs mt-1">
-                {!searchQuery && "Crea tu primera consulta haciendo clic en 'Nuevo'"}
+                {!searchQuery && "Crea tu primer diagnóstico en la sección principal"}
               </p>
             </div>
           )}
@@ -391,10 +244,10 @@ export default function Sidebar({
                 className="h-10 w-10 rounded-full text-white flex items-center justify-center font-medium"
                 style={{ backgroundColor: "#F198C0" }}
               >
-                {user?.name?.substring(0, 2).toUpperCase() || "US"}
+                {user?.name?.substring(0, 2).toUpperCase() || "PR"}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-white truncate">{user?.name || "Usuario"}</p>
+                <p className="text-sm font-medium text-white truncate">{user?.name || "Profesional"}</p>
                 <p className="text-xs text-zinc-400 truncate">{user?.email || ""}</p>
               </div>
             </div>
