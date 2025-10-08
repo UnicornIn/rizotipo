@@ -16,8 +16,8 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false)
 
   const mockUser = {
-    email: "demo@rizotipo.com",
-    password: "123456",
+    email: "test@gmail.com",
+    password: "test123",
     name: "usuario demo",
   }
 
@@ -154,16 +154,17 @@ export default function LoginPage() {
                 </>
               )}
             </button>
+            {/* Botón demo login */}
+            <button
+              type="button"
+              onClick={handleDemoLogin}
+              className="w-full mt-2 py-3 px-4 text-white font-medium rounded-lg transition-all duration-200 flex items-center justify-center gap-2 text-sm sm:text-base"
+              style={{ backgroundColor: "#7F5A83" }}
+            >
+              Usar cuenta demo
+            </button>
           </form>
 
-          {/* Demo login button */}
-          <button
-            type="button"
-            onClick={handleDemoLogin}
-            className="mt-4 w-full py-2 px-4 text-white font-medium rounded-lg transition-all duration-200 bg-zinc-700 hover:bg-zinc-800 flex items-center justify-center gap-2 text-sm sm:text-base"
-          >
-            Usar usuario demo
-          </button>
 
         </div>
       </div>

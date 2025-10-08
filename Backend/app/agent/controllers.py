@@ -6,13 +6,13 @@ from app.core.database import collection_chats
 from app.agent.models import ChatSession, Message, PyObjectId
 from datetime import datetime
 from bson import ObjectId
-from typing import List
+from typing import List, Dict, Any
 
 load_dotenv()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 client = AsyncOpenAI(api_key=OPENAI_API_KEY)
 
-async def chat_with_openai(message: str, chat_history: List[Message] = None) -> str:
+async def chat_with_openai(message: str, chat_history: List[Dict[str, Any]] = None) -> str:
     """
     Envía un mensaje a OpenAI con historial de conversación
     """
@@ -22,7 +22,8 @@ async def chat_with_openai(message: str, chat_history: List[Message] = None) -> 
     # Agregar historial si existe
     if chat_history:
         for msg in chat_history[-10:]:  # Últimos 10 mensajes para contexto
-            messages.append({"role": msg.role, "content": msg.content})
+            # Usar acceso por clave en lugar de atributo
+            messages.append({"role": msg["role"], "content": msg["content"]})
     
     # Agregar mensaje actual
     messages.append({"role": "user", "content": message})
@@ -39,12 +40,16 @@ async def save_chat_message(chat_session_id: str, role: str, content: str):
     """
     Guarda un mensaje en la sesión de chat
     """
-    message = Message(role=role, content=content)
+    message = {
+        "role": role, 
+        "content": content,
+        "timestamp": datetime.utcnow()
+    }
     
     await collection_chats.update_one(
         {"_id": ObjectId(chat_session_id)},
         {
-            "$push": {"messages": message.dict()},
+            "$push": {"messages": message},
             "$set": {"updated_at": datetime.utcnow()}
         }
     )
@@ -53,13 +58,15 @@ async def create_chat_session(professional_id: str, title: str) -> str:
     """
     Crea una nueva sesión de chat
     """
-    chat_session = ChatSession(
-        professional_id=ObjectId(professional_id),
-        title=title,
-        messages=[]
-    )
+    chat_session = {
+        "professional_id": ObjectId(professional_id),
+        "title": title,
+        "messages": [],
+        "created_at": datetime.utcnow(),
+        "updated_at": datetime.utcnow()
+    }
     
-    result = await collection_chats.insert_one(chat_session.dict(by_alias=True))
+    result = await collection_chats.insert_one(chat_session)
     return str(result.inserted_id)
 
 async def get_chat_sessions(professional_id: str):

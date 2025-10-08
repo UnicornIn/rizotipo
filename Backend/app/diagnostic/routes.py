@@ -47,3 +47,37 @@ async def get_diagnostic(diagnostic_id: str, user=Depends(get_current_user)):
         created_at=diagnostic["created_at"],
         resultado_agente=diagnostic.get("resultado_agente")
     )
+
+# ===== Get all diagnostics for the authenticated professional =====
+@router.get("/", response_model=list[DiagnosticResponse])
+async def get_all_diagnostics(user=Depends(get_current_user)):
+    diagnostics_cursor = collection_diagnostics.find({
+        "professional_id": ObjectId(user["_id"])
+    })
+
+    diagnostics = await diagnostics_cursor.to_list(length=None)
+
+    if not diagnostics:
+        raise HTTPException(status_code=404, detail="No se encontraron diagnósticos para este profesional")
+
+    return [
+        DiagnosticResponse(
+            id=str(d["_id"]),
+            professional_id=str(d["professional_id"]),
+            nombre=d["nombre"],
+            whatsapp=d["whatsapp"],
+            correo=d["correo"],
+            plasticidad=d["plasticidad"],
+            permeabilidad=d["permeabilidad"],
+            densidad=d["densidad"],
+            porosidad=d["porosidad"],
+            oleosidad=d["oleosidad"],
+            grosor=d["grosor"],
+            textura=d["textura"],
+            notas=d.get("notas"),
+            created_at=d["created_at"],
+            resultado_agente=d.get("resultado_agente")
+        )
+        for d in diagnostics
+    ]
+

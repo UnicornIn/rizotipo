@@ -6,8 +6,7 @@ import { useNavigate } from "react-router-dom"
 
 export default function ChatCenter() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [activeChat, setActiveChat] = useState("")
-  const [chatSessionId, setChatSessionId] = useState("")
+  const [activeChat, ] = useState("")
   const navigate = useNavigate()
 
   const handleGoToDiagnostic = () => {
@@ -31,10 +30,6 @@ export default function ChatCenter() {
         ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}
       >
         <Sidebar
-          activeChat={activeChat}
-          setActiveChat={setActiveChat}
-          chatSessionId={chatSessionId}
-          setChatSessionId={setChatSessionId}
           isOpen={sidebarOpen}
           onClose={() => setSidebarOpen(false)}
         />
@@ -69,7 +64,7 @@ export default function ChatCenter() {
         </div>
 
         {/* Chat area */}
-        <ChatArea activeChat={activeChat} chatSessionId={chatSessionId} />
+        <ChatArea activeChat={activeChat} />
       </div>
     </div>
   )
