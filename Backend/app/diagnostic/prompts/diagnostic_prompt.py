@@ -274,9 +274,6 @@ Usar productos densos (crema 3 en 1, mascarillas)
 Cabello medio
 Ajustar cantidad de producto según densidad
 
-E. Cuidados Extra
-Dormir con gorro de satín
-Hacer piña o usar rizo protector
 
 **FORMATO DE RESPUESTA FINAL - JSON COMPLETO:**
 
@@ -297,7 +294,7 @@ Después de recopilar toda la información del cliente, genera SOLO este JSON co
       ]
     },
     "B": {
-      "titulo": "Recomendaciones de Lavado",
+      "titulo": "Lavado",
       "contenido": [
         "[Técnica CO-POO o ASA según oleosidad]",
         "[Pasos detallados de la técnica aplicada]",
@@ -317,7 +314,7 @@ Después de recopilar toda la información del cliente, genera SOLO este JSON co
       ]
     },
     "D": {
-      "titulo": "Definición y Styling",
+      "titulo": " Styling",
       "contenido": [
         "[Técnicas específicas según textura]",
         "[Métodos de aplicación según grosor]",
@@ -329,8 +326,6 @@ Después de recopilar toda la información del cliente, genera SOLO este JSON co
     "E": {
       "titulo": "Cuidados Extra",
       "contenido": [
-        "Dormir con gorro de satín todas las noches",
-        "Hacer piña o usar rizo protector durante el sueño",
         "[Cuidados adicionales según el diagnóstico específico]",
         "[Recomendaciones de mantenimiento diario]",
         "[Consejos para proteger el cabello entre lavados]"
