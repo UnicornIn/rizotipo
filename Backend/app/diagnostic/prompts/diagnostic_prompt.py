@@ -256,7 +256,6 @@ Tratamientos nutritivos y fortalecedores
 Porosidad baja
 Mantener equilibrio con hidrataciones ligeras
 
-
 D. Definición y Styling (basados en textura y grosor)
 Ondulado
 Praying hands + scrunch intensivo
