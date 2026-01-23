@@ -27,14 +27,14 @@ const questions = [
     key: "densidad",
     question: "¿Cómo sientes la cantidad de cabello que tienes?",
     type: "options" as const,
-    options: ["Poca", "Media", "Mucha"],
+    options: ["Poco", "Mucho"],
   },
   {
     key: "porosidad",
-    question: "¿Tu cabello se satura fácilmente con productos o tiene procesos químicos?",
+    question: "¿Tienes procesos de color o decoloración?",
     type: "options" as const,
-    options: ["Alta", "Baja"],
-  },
+    options: ["Si", "No"],
+  },  
   {
     key: "oleosidad",
     question: "¿Cada cuánto tiempo se engrasa tu cuero cabelludo?",
@@ -48,7 +48,7 @@ const questions = [
     key: "grosor",
     question: "¿Qué tan gruesa sientes tu hebra capilar?",
     type: "options" as const,
-    options: ["Delgada", "Media", "Gruesa"],
+    options: ["Delgada", "Gruesa"],
   },
   {
     key: "textura",
@@ -56,6 +56,12 @@ const questions = [
     type: "options" as const,
     options: ["Ondulado", "Rizado", "Afro"],
   },
+  {
+    key: "volumen_control",
+    question: "¿Te gusta el volumen o el control?",
+    type: "options" as const,
+    options: ["volumen", "control"],
+  }
 ]
 
 // Función de validación de email más estricta
@@ -75,7 +81,7 @@ export default function DiagnosticForm() {
   const [currentStep, setCurrentStep] = useState(-1)
   const [showConfirmModal, setShowConfirmModal] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [errors, setErrors] = useState<{[key: string]: string}>({})
+  const [errors, setErrors] = useState<{ [key: string]: string }>({})
 
   // Función para manejar token expirado
   const handleTokenExpired = () => {
@@ -106,29 +112,29 @@ export default function DiagnosticForm() {
     setFormData({ ...formData, [key]: value })
     // Limpiar error cuando el usuario empiece a escribir
     if (errors[key]) {
-      setErrors(prev => ({...prev, [key]: ""}))
+      setErrors(prev => ({ ...prev, [key]: "" }))
     }
   }
 
   const validatePersonalData = () => {
-    const newErrors: {[key: string]: string} = {}
-    
+    const newErrors: { [key: string]: string } = {}
+
     if (!formData.nombre.trim()) {
       newErrors.nombre = "El nombre completo es obligatorio"
     }
-    
+
     if (!formData.whatsapp.trim()) {
       newErrors.whatsapp = "El WhatsApp es obligatorio"
     } else if (!/^[\+]?[0-9\s\-\(\)]{10,}$/.test(formData.whatsapp.replace(/\s/g, ''))) {
       newErrors.whatsapp = "Ingresa un número de WhatsApp válido con al menos 10 dígitos"
     }
-    
+
     if (!formData.correo.trim()) {
       newErrors.correo = "El correo electrónico es obligatorio"
     } else if (!isValidEmail(formData.correo)) {
       newErrors.correo = "Ingresa un correo electrónico válido (ejemplo: nombre@dominio.com)"
     }
-    
+
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
@@ -140,7 +146,7 @@ export default function DiagnosticForm() {
         return
       }
     }
-    
+
     if (currentStep < questions.length - 1) setCurrentStep(currentStep + 1)
   }
 
@@ -233,13 +239,13 @@ export default function DiagnosticForm() {
   // Función para verificar si se puede avanzar
   const canProceed = () => {
     if (currentStep === -1) {
-      return formData.nombre.trim() && 
-             formData.whatsapp.trim() && 
-             formData.correo.trim() &&
-             isValidEmail(formData.correo) &&
-             !errors.nombre &&
-             !errors.whatsapp &&
-             !errors.correo
+      return formData.nombre.trim() &&
+        formData.whatsapp.trim() &&
+        formData.correo.trim() &&
+        isValidEmail(formData.correo) &&
+        !errors.nombre &&
+        !errors.whatsapp &&
+        !errors.correo
     }
     return formData[currentQuestion?.key || ""]
   }
@@ -299,9 +305,8 @@ export default function DiagnosticForm() {
                   </Label>
                   <input
                     type="text"
-                    className={`w-full bg-zinc-800 border text-white p-3 rounded-lg focus:outline-none focus:ring-1 focus:border-[#F198C0] transition-colors ${
-                      errors.nombre ? "border-red-500 focus:ring-red-500" : "border-zinc-600 focus:ring-[#F198C0]"
-                    }`}
+                    className={`w-full bg-zinc-800 border text-white p-3 rounded-lg focus:outline-none focus:ring-1 focus:border-[#F198C0] transition-colors ${errors.nombre ? "border-red-500 focus:ring-red-500" : "border-zinc-600 focus:ring-[#F198C0]"
+                      }`}
                     value={formData.nombre}
                     onChange={(e) => handleChange("nombre", e.target.value)}
                     placeholder="Ingresa tu nombre completo"
@@ -318,9 +323,8 @@ export default function DiagnosticForm() {
                   </Label>
                   <input
                     type="tel"
-                    className={`w-full bg-zinc-800 border text-white p-3 rounded-lg focus:outline-none focus:ring-1 focus:border-[#F198C0] transition-colors ${
-                      errors.whatsapp ? "border-red-500 focus:ring-red-500" : "border-zinc-600 focus:ring-[#F198C0]"
-                    }`}
+                    className={`w-full bg-zinc-800 border text-white p-3 rounded-lg focus:outline-none focus:ring-1 focus:border-[#F198C0] transition-colors ${errors.whatsapp ? "border-red-500 focus:ring-red-500" : "border-zinc-600 focus:ring-[#F198C0]"
+                      }`}
                     value={formData.whatsapp}
                     onChange={(e) => handleChange("whatsapp", e.target.value)}
                     placeholder="Ej: +57 3001234567"
@@ -337,14 +341,13 @@ export default function DiagnosticForm() {
                   </Label>
                   <input
                     type="email"
-                    className={`w-full bg-zinc-800 border text-white p-3 rounded-lg focus:outline-none focus:ring-1 focus:border-[#F198C0] transition-colors ${
-                      errors.correo ? "border-red-500 focus:ring-red-500" : "border-zinc-600 focus:ring-[#F198C0]"
-                    }`}
+                    className={`w-full bg-zinc-800 border text-white p-3 rounded-lg focus:outline-none focus:ring-1 focus:border-[#F198C0] transition-colors ${errors.correo ? "border-red-500 focus:ring-red-500" : "border-zinc-600 focus:ring-[#F198C0]"
+                      }`}
                     value={formData.correo}
                     onChange={(e) => handleChange("correo", e.target.value)}
                     onBlur={() => {
                       if (formData.correo && !isValidEmail(formData.correo)) {
-                        setErrors(prev => ({...prev, correo: "Ingresa un correo electrónico válido (ejemplo: nombre@dominio.com)"}))
+                        setErrors(prev => ({ ...prev, correo: "Ingresa un correo electrónico válido (ejemplo: nombre@dominio.com)" }))
                       }
                     }}
                     placeholder="ejemplo@correo.com"
@@ -427,7 +430,7 @@ export default function DiagnosticForm() {
                         // Para otras preguntas, option es un string
                         const displayText = typeof option === 'object' ? option.display : option
                         const value = typeof option === 'object' ? option.value : option
-                        
+
                         return (
                           <Button
                             key={value}
